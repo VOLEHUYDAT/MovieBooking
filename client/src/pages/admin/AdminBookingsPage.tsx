@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { canCancelBooking, getBookingTimelineStatus } from '@shared/services/bookingPolicy';
+import type { PaginatedResponse } from '@shared/types/api';
 import type { Booking } from '@shared/types/domain';
 import { adminApi, bookingApi, queryKeys, type AdminBookingFilter } from '@/api/endpoints';
 import { getErrorMessage } from '@/api/httpClient';
@@ -48,6 +49,10 @@ export function AdminBookingsPage() {
     mutationFn: (bookingId: string) => bookingApi.cancel(bookingId),
     onSuccess: ({ booking }) => {
       toast.success(`Đã hủy vé ${booking.code}`);
+      queryClient.setQueriesData<PaginatedResponse<Booking>>({ queryKey: ['admin', 'bookings'] }, (page) =>
+        page ? { ...page, items: page.items.map((item) => (item.id === booking.id ? booking : item)) } : page,
+      );
+      queryClient.setQueryData(queryKeys.booking(booking.id), booking);
       void queryClient.invalidateQueries({ queryKey: ['admin'] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookings });
     },

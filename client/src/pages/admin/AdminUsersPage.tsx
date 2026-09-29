@@ -3,7 +3,7 @@ import { Lock, LockOpen, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ROLE_LABELS, USER_ROLES } from '@shared/lib/permissions';
-import type { UpdateUserRequest } from '@shared/types/api';
+import type { PaginatedResponse, UpdateUserRequest } from '@shared/types/api';
 import type { User, UserRole } from '@shared/types/domain';
 import { adminApi, queryKeys } from '@/api/endpoints';
 import { getErrorMessage } from '@/api/httpClient';
@@ -43,6 +43,10 @@ export function AdminUsersPage() {
     mutationFn: ({ userId, changes }: { userId: string; changes: UpdateUserRequest }) => adminApi.updateUser(userId, changes),
     onSuccess: ({ user }) => {
       toast.success(`Đã cập nhật tài khoản ${user.fullName}`);
+      // Reflect the server's answer immediately, then refresh in the background.
+      queryClient.setQueriesData<PaginatedResponse<User>>({ queryKey: ['admin', 'users'] }, (page) =>
+        page ? { ...page, items: page.items.map((item) => (item.id === user.id ? user : item)) } : page,
+      );
       void queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
