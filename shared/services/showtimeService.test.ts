@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getUpcomingDateKeys } from '../lib/date';
+import { cinemaDateTime, getUpcomingDateKeys } from '../lib/date';
 import { BOOKING_CUTOFF_MINUTES, getShowtimeById, getShowtimesForMovie, isShowtimeBookable, parseShowtimeId } from './showtimeService';
 
 const [today = '', tomorrow = ''] = getUpcomingDateKeys(2);
@@ -32,7 +32,7 @@ describe('showtime generation', () => {
 });
 
 describe('isShowtimeBookable', () => {
-  const startsAt = new Date(2026, 9, 6, 19, 0);
+  const startsAt = cinemaDateTime('2026-10-06', 19, 0)!;
   const showtime = { id: 'x', movieId: 'm', cinemaId: 'c', auditorium: 'Phòng 1', format: '2D' as const, startsAt: startsAt.toISOString(), endsAt: startsAt.toISOString() };
 
   it('closes online sales at the cutoff', () => {

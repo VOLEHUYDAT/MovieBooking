@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { findPromotion } from '../data/promotions';
+import { cinemaDateTime } from '../lib/date';
 import { calculatePriceBreakdown, evaluatePromotion, getSeatPrice } from './pricingService';
 import { getSeatById } from './seatMapService';
 
 // 2026-10-06 is a Tuesday, 2026-10-03 is a Saturday (local time).
-const weekday2D = { format: '2D' as const, startsAt: new Date(2026, 9, 6, 19, 0).toISOString() };
-const weekendImax = { format: 'IMAX' as const, startsAt: new Date(2026, 9, 3, 19, 0).toISOString() };
+const weekday2D = { format: '2D' as const, startsAt: cinemaDateTime('2026-10-06', 19, 0)!.toISOString() };
+const weekendImax = { format: 'IMAX' as const, startsAt: cinemaDateTime('2026-10-03', 19, 0)!.toISOString() };
 
 describe('getSeatPrice', () => {
   it('uses the base price for a weekday 2D screening', () => {

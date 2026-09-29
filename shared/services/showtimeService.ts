@@ -1,6 +1,6 @@
 import { CINEMAS, getCinemaById } from '../data/cinemas';
 import { getMovieById, MOVIES } from '../data/movies';
-import { parseDateKey } from '../lib/date';
+import { cinemaDateTime, parseDateKey } from '../lib/date';
 import { createSeededRandom } from '../lib/random';
 import type { Cinema, Movie, ScreenFormat, Showtime } from '../types/domain';
 
@@ -50,8 +50,7 @@ function isReleasedOn(movie: Movie, dateKey: string): boolean {
  * The same inputs always produce the same showtimes, so IDs stay stable across reloads.
  */
 function generateShowtimes(movie: Movie, cinema: Cinema, dateKey: string): Showtime[] {
-  const date = parseDateKey(dateKey);
-  if (!date || !isReleasedOn(movie, dateKey)) return [];
+  if (!parseDateKey(dateKey) || !isReleasedOn(movie, dateKey)) return [];
 
   const random = createSeededRandom(`${movie.id}|${cinema.id}|${dateKey}`);
   if (random() < 0.15) return [];
@@ -64,7 +63,7 @@ function generateShowtimes(movie: Movie, cinema: Cinema, dateKey: string): Showt
     const hours = Math.floor(startMinute / 60);
     const minutes = startMinute % 60;
     const startTime = `${String(hours).padStart(2, '0')}${String(minutes).padStart(2, '0')}`;
-    const startsAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes);
+    const startsAt = cinemaDateTime(dateKey, hours, minutes)!;
     const endsAt = new Date(startsAt.getTime() + movie.durationMinutes * 60_000);
     const format = pickFormat(movie, cinema, random);
     const auditorium =
