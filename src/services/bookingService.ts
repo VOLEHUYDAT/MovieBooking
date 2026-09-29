@@ -59,7 +59,7 @@ export function createBooking(input: CreateBookingInput): Booking {
     customer: {
       fullName: customer.fullName.trim(),
       email: customer.email.trim().toLowerCase(),
-      phone: customer.phone.replace(/\s+/g, ''),
+      phone: customer.phone.replace(/[\s.-]/g, ''),
     },
     paymentMethod,
     promoCode: pricing.discount > 0 && promotion ? promotion.code : null,

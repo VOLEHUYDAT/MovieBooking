@@ -12,6 +12,8 @@ interface BookingDraftState {
   promoCode: string | null;
   /** Epoch milliseconds when the seat hold expires; null when no hold is active. */
   holdExpiresAt: number | null;
+  /** Set once payment succeeds so the booking flow can hand off to the ticket page. */
+  completedBookingId: string | null;
 }
 
 interface BookingDraftActions {
@@ -22,6 +24,7 @@ interface BookingDraftActions {
   startHold: () => void;
   setConcessionQuantity: (itemId: string, quantity: number) => void;
   setPromoCode: (code: string | null) => void;
+  completeDraft: (bookingId: string) => void;
   resetDraft: () => void;
 }
 
@@ -31,6 +34,7 @@ const initialState: BookingDraftState = {
   concessionQuantities: {},
   promoCode: null,
   holdExpiresAt: null,
+  completedBookingId: null,
 };
 
 export const useBookingDraftStore = create<BookingDraftState & BookingDraftActions>()(
@@ -39,7 +43,8 @@ export const useBookingDraftStore = create<BookingDraftState & BookingDraftActio
       ...initialState,
 
       startDraft: (showtimeId) => {
-        if (get().showtimeId === showtimeId) return;
+        const { showtimeId: currentShowtimeId, completedBookingId } = get();
+        if (currentShowtimeId === showtimeId && completedBookingId === null) return;
         set({ ...initialState, showtimeId });
       },
 
@@ -73,18 +78,21 @@ export const useBookingDraftStore = create<BookingDraftState & BookingDraftActio
 
       setPromoCode: (promoCode) => set({ promoCode }),
 
+      completeDraft: (bookingId) => set({ ...initialState, completedBookingId: bookingId }),
+
       resetDraft: () => set(initialState),
     }),
     {
       name: 'lumina.booking-draft',
       version: 1,
       storage: createJSONStorage(() => sessionStorage),
-      partialize: ({ showtimeId, selectedSeatIds, concessionQuantities, promoCode, holdExpiresAt }) => ({
+      partialize: ({ showtimeId, selectedSeatIds, concessionQuantities, promoCode, holdExpiresAt, completedBookingId }) => ({
         showtimeId,
         selectedSeatIds,
         concessionQuantities,
         promoCode,
         holdExpiresAt,
+        completedBookingId,
       }),
     },
   ),
