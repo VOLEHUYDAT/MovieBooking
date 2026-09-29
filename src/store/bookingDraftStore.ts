@@ -86,13 +86,14 @@ export const useBookingDraftStore = create<BookingDraftState & BookingDraftActio
       name: 'lumina.booking-draft',
       version: 1,
       storage: createJSONStorage(() => sessionStorage),
-      partialize: ({ showtimeId, selectedSeatIds, concessionQuantities, promoCode, holdExpiresAt, completedBookingId }) => ({
+      // `completedBookingId` is an in-memory hand-off signal only; persisting it could
+      // redirect a later visit to an old ticket.
+      partialize: ({ showtimeId, selectedSeatIds, concessionQuantities, promoCode, holdExpiresAt }) => ({
         showtimeId,
         selectedSeatIds,
         concessionQuantities,
         promoCode,
         holdExpiresAt,
-        completedBookingId,
       }),
     },
   ),
