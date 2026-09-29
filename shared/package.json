@@ -1,0 +1,11 @@
+{
+  "name": "@lumina/shared",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain model, catalog data and business rules shared by client and server",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

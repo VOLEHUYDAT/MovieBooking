@@ -5,21 +5,27 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['**/dist', '**/node_modules', '**/.pglite', '**/coverage'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2023,
-      globals: globals.browser,
-    },
-    plugins: {
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
-    },
+    languageOptions: { ecmaVersion: 2023 },
+  },
+  {
+    files: ['client/**/*.{ts,tsx}'],
+    languageOptions: { globals: globals.browser },
+    plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
+  },
+  {
+    files: ['server/**/*.ts', '**/*.config.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['shared/**/*.ts'],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
 );
