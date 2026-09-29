@@ -24,11 +24,11 @@ const ICONS: Record<ConcessionIcon, { icon: LucideIcon; className: string }> = {
 };
 
 export function ConcessionsPage() {
-  const { selectedSeats, concessionQuantities, holdRemainingMs, basePath } = useBookingFlow();
+  const { selectedSeats, concessionQuantities, hold, basePath } = useBookingFlow();
   const navigate = useNavigate();
   const setConcessionQuantity = useBookingDraftStore((state) => state.setConcessionQuantity);
 
-  if (selectedSeats.length === 0 || holdRemainingMs === null) {
+  if (selectedSeats.length === 0 || hold === null) {
     return <Navigate to={`${basePath}/seats`} replace />;
   }
 

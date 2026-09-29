@@ -1,21 +1,31 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Info, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { findStrandedSeats, MAX_SEATS_PER_BOOKING } from '@shared/services/seatSelectionRules';
+import type { Seat } from '@shared/types/domain';
+import { bookingApi, queryKeys } from '@/api/endpoints';
+import { getErrorMessage, isApiError } from '@/api/httpClient';
 import { BookingStepShell } from '@/components/booking/BookingStepShell';
 import { SeatMap } from '@/components/booking/SeatMap';
 import { Button } from '@/components/ui/Button';
-import { findStrandedSeats, MAX_SEATS_PER_BOOKING } from '@shared/services/seatSelectionRules';
 import { useBookingDraftStore } from '@/store/bookingDraftStore';
-import type { Seat } from '@shared/types/domain';
 import { useBookingFlow } from './bookingFlowContext';
 
+function sameSeats(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((seatId) => b.includes(seatId));
+}
+
 export function SeatSelectionPage() {
-  const { seatMap, showtime, selectedSeats, basePath } = useBookingFlow();
+  const { seatMap, showtime, selectedSeats, hold, basePath } = useBookingFlow();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const toggleSeat = useBookingDraftStore((state) => state.toggleSeat);
   const clearSeats = useBookingDraftStore((state) => state.clearSeats);
-  const startHold = useBookingDraftStore((state) => state.startHold);
+  const setHold = useBookingDraftStore((state) => state.setHold);
+
+  const createHold = useMutation({ mutationFn: bookingApi.createHold });
 
   const selectedSeatIds = useMemo(() => new Set(selectedSeats.map((seat) => seat.id)), [selectedSeats]);
   const strandedSeats = useMemo(() => findStrandedSeats(seatMap, selectedSeatIds), [seatMap, selectedSeatIds]);
@@ -25,16 +35,49 @@ export function SeatSelectionPage() {
     0,
   );
 
+  /** Changing the selection invalidates the current hold; release it so others can book those seats. */
+  const releaseCurrentHold = useCallback(() => {
+    if (!hold) return;
+    setHold(null);
+    bookingApi.releaseHold(hold.id).catch(() => undefined);
+  }, [hold, setHold]);
+
   const handleToggleSeat = useCallback(
     (seat: Seat) => {
       if (!selectedSeatIds.has(seat.id) && selectedSeatIds.size >= MAX_SEATS_PER_BOOKING) {
         toast.error(`Bạn chỉ có thể chọn tối đa ${MAX_SEATS_PER_BOOKING} ghế cho mỗi lần đặt.`);
         return;
       }
+      releaseCurrentHold();
       toggleSeat(seat.id);
     },
-    [selectedSeatIds, toggleSeat],
+    [selectedSeatIds, toggleSeat, releaseCurrentHold],
   );
+
+  const handleContinue = () => {
+    const seatIds = selectedSeats.map((seat) => seat.id);
+    if (hold && sameSeats(hold.seatIds, seatIds)) {
+      navigate(`${basePath}/concessions`);
+      return;
+    }
+
+    createHold.mutate(
+      { showtimeId: showtime.id, seatIds },
+      {
+        onSuccess: ({ hold: newHold }) => {
+          setHold(newHold);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.seatAvailability(showtime.id) });
+          navigate(`${basePath}/concessions`);
+        },
+        onError: (error) => {
+          toast.error(getErrorMessage(error));
+          if (isApiError(error, 'SEATS_UNAVAILABLE')) {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.seatAvailability(showtime.id) });
+          }
+        },
+      },
+    );
+  };
 
   const hint =
     selectedSeats.length === 0
@@ -46,10 +89,17 @@ export function SeatSelectionPage() {
   return (
     <BookingStepShell
       title="Chọn ghế ngồi"
-      description={`Còn ${availableSeatCount} ghế trống · Tối đa ${MAX_SEATS_PER_BOOKING} ghế mỗi lần đặt`}
+      description={`Còn ${availableSeatCount} ghế trống · Tối đa ${MAX_SEATS_PER_BOOKING} ghế mỗi lần đặt · Tự động cập nhật`}
       headerAside={
         selectedSeats.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearSeats}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              releaseCurrentHold();
+              clearSeats();
+            }}
+          >
             <RotateCcw className="size-4" aria-hidden /> Bỏ chọn tất cả
           </Button>
         )
@@ -57,11 +107,9 @@ export function SeatSelectionPage() {
       action={{
         label: 'Tiếp tục',
         disabled: Boolean(hint),
+        isLoading: createHold.isPending,
         hint,
-        onClick: () => {
-          startHold();
-          navigate(`${basePath}/concessions`);
-        },
+        onClick: handleContinue,
       }}
     >
       <SeatMap
@@ -86,7 +134,7 @@ export function SeatSelectionPage() {
         <Info className="size-4 shrink-0 text-sky-300" aria-hidden />
         <p>
           Ghế đôi dành cho 2 người và được tính giá theo cặp. Sau khi bấm <strong className="text-ink">Tiếp tục</strong>, ghế
-          sẽ được giữ cho bạn trong 10 phút để hoàn tất thanh toán.
+          sẽ được giữ riêng cho bạn trong 10 phút để hoàn tất thanh toán.
         </p>
       </div>
     </BookingStepShell>

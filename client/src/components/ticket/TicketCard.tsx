@@ -2,8 +2,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { getMovieById } from '@shared/data/movies';
 import { getPaymentMethodLabel } from '@shared/data/paymentMethods';
 import { cn } from '@/lib/cn';
-import { formatCurrency, formatFullDate, formatTime } from '@/lib/format';
-import type { BookingTimelineStatus } from '@/services/bookingService';
+import { formatCurrency, formatFullDate, formatShortDate, formatTime } from '@/lib/format';
+import type { BookingTimelineStatus } from '@shared/services/bookingPolicy';
 import type { Booking } from '@shared/types/domain';
 import { AgeRatingBadge } from '../ui/Badges';
 import { MoviePoster } from '../movie/MoviePoster';
@@ -79,7 +79,13 @@ export function TicketCard({ booking, status }: TicketCardProps) {
         </div>
         <p className="mt-4 text-xs text-ink-subtle">Mã đặt vé</p>
         <p className="font-mono text-2xl font-black tracking-[0.2em]">{booking.code}</p>
-        {!isCancelled && <p className="mt-2 text-center text-xs text-ink-muted">Xuất trình mã QR tại quầy soát vé để vào phòng chiếu</p>}
+        {booking.checkedInAt ? (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+            Đã soát vé lúc {formatTime(booking.checkedInAt)} · {formatShortDate(booking.checkedInAt)}
+          </p>
+        ) : (
+          !isCancelled && <p className="mt-2 text-center text-xs text-ink-muted">Xuất trình mã QR tại quầy soát vé để vào phòng chiếu</p>
+        )}
       </div>
 
       <div className="space-y-4 border-t border-line bg-white/[0.02] px-5 py-5 text-sm sm:px-6">

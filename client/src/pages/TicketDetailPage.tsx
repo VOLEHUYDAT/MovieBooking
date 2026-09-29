@@ -1,21 +1,22 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CalendarPlus, CircleCheck, Printer, Ticket, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { toast } from 'sonner';
+import { hasPermission } from '@shared/lib/permissions';
+import { canCancelBooking, CANCELLATION_WINDOW_HOURS, getBookingTimelineStatus } from '@shared/services/bookingPolicy';
+import { bookingApi, queryKeys } from '@/api/endpoints';
+import { getErrorMessage, isApiError } from '@/api/httpClient';
 import { TicketCard } from '@/components/ticket/TicketCard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { PageLoader } from '@/components/ui/PageLoader';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNow } from '@/hooks/useNow';
+import { buildCalendarEvent } from '@/lib/calendar';
 import { formatCurrency } from '@/lib/format';
-import {
-  buildCalendarEvent,
-  canCancelBooking,
-  CANCELLATION_WINDOW_HOURS,
-  getBookingTimelineStatus,
-} from '@/services/bookingService';
 import { useBookingDraftStore } from '@/store/bookingDraftStore';
-import { useBookingHistoryStore } from '@/store/bookingHistoryStore';
 import { NotFoundPage } from './NotFoundPage';
 
 function downloadTextFile(fileName: string, content: string, mimeType: string) {
@@ -33,30 +34,61 @@ export function TicketDetailPage() {
   const { bookingId = '' } = useParams();
   const location = useLocation();
   const justBooked = (location.state as { justBooked?: boolean } | null)?.justBooked === true;
-  const booking = useBookingHistoryStore((state) => state.bookings.find((item) => item.id === bookingId));
-  const cancelBooking = useBookingHistoryStore((state) => state.cancelBooking);
+  const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const now = useNow();
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+
   const completedBookingId = useBookingDraftStore((state) => state.completedBookingId);
   const resetDraft = useBookingDraftStore((state) => state.resetDraft);
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const now = useNow();
-  useDocumentTitle(booking ? `Vé ${booking.code}` : 'Không tìm thấy vé');
+
+  const bookingQuery = useQuery({
+    queryKey: queryKeys.booking(bookingId),
+    queryFn: async ({ signal }) => (await bookingApi.get(bookingId, signal)).booking,
+  });
+  const booking = bookingQuery.data;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => bookingApi.cancel(bookingId),
+    onSuccess: ({ booking: cancelled }) => {
+      queryClient.setQueryData(queryKeys.booking(cancelled.id), cancelled);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookings });
+      void queryClient.invalidateQueries({ queryKey: ['admin'] });
+      toast.success(`Đã hủy vé ${cancelled.code}. Tiền sẽ được hoàn trong 3-5 ngày làm việc.`);
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+    onSettled: () => setIsCancelDialogOpen(false),
+  });
+
+  useDocumentTitle(booking ? `Vé ${booking.code}` : 'Chi tiết vé');
 
   // The booking wizard hands off here after payment; clear the finished draft.
   useEffect(() => {
     if (completedBookingId !== null) resetDraft();
   }, [completedBookingId, resetDraft]);
 
+  if (bookingQuery.isPending) return <PageLoader label="Đang tải vé..." />;
+
   if (!booking) {
-    return <NotFoundPage title="Không tìm thấy vé" description="Vé không tồn tại hoặc đã bị xóa khỏi thiết bị này." />;
+    const isNotFound = isApiError(bookingQuery.error) && bookingQuery.error.status === 404;
+    return (
+      <NotFoundPage
+        title={isNotFound ? 'Không tìm thấy vé' : 'Không tải được vé'}
+        description={isNotFound ? 'Vé không tồn tại hoặc bạn không có quyền xem vé này.' : getErrorMessage(bookingQuery.error)}
+      />
+    );
   }
 
   const status = getBookingTimelineStatus(booking, now);
-  const isCancellable = canCancelBooking(booking, now);
+  const isOwner = booking.userId === user?.id;
+  const isAdmin = !!user && hasPermission(user.role, 'booking:cancel-any');
+  const isCancellable = (isOwner || isAdmin) && canCancelBooking(booking, now, { isAdmin });
+  const backLink = isOwner ? { to: '/tickets', label: 'Vé của tôi' } : { to: '/admin/bookings', label: 'Quản lý đặt vé' };
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
-      <Link to="/tickets" className="print-hidden inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" aria-hidden /> Vé của tôi
+      <Link to={backLink.to} className="print-hidden inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink">
+        <ArrowLeft className="size-4" aria-hidden /> {backLink.label}
       </Link>
 
       {justBooked && status === 'upcoming' && (
@@ -99,12 +131,14 @@ export function TicketDetailPage() {
         </ButtonLink>
       </div>
 
-      {status === 'upcoming' && (
+      {status === 'upcoming' && booking.checkedInAt === null && (isOwner || isAdmin) && (
         <div className="print-hidden mt-8 rounded-2xl border border-line p-4 text-sm">
           {isCancellable ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-ink-muted">
-                Có thể hủy vé và hoàn tiền trước giờ chiếu {CANCELLATION_WINDOW_HOURS} tiếng.
+                {isAdmin && !isOwner
+                  ? 'Quản trị viên có thể hủy vé này đến trước giờ chiếu.'
+                  : `Có thể hủy vé và hoàn tiền trước giờ chiếu ${CANCELLATION_WINDOW_HOURS} tiếng.`}
               </p>
               <Button variant="danger" size="sm" onClick={() => setIsCancelDialogOpen(true)}>
                 <XCircle className="size-4" aria-hidden /> Hủy vé
@@ -131,17 +165,11 @@ export function TicketDetailPage() {
             toán ban đầu trong 3-5 ngày làm việc. Thao tác này không thể hoàn tác.
           </>
         }
-        confirmLabel="Xác nhận hủy vé"
+        confirmLabel={cancelMutation.isPending ? 'Đang hủy...' : 'Xác nhận hủy vé'}
         cancelLabel="Giữ vé"
         onCancel={() => setIsCancelDialogOpen(false)}
         onConfirm={() => {
-          if (!canCancelBooking(booking)) {
-            toast.error('Đã quá thời hạn hủy vé trực tuyến.');
-          } else {
-            cancelBooking(booking.id);
-            toast.success(`Đã hủy vé ${booking.code}. Tiền sẽ được hoàn trong 3-5 ngày làm việc.`);
-          }
-          setIsCancelDialogOpen(false);
+          if (!cancelMutation.isPending) cancelMutation.mutate();
         }}
       />
     </div>

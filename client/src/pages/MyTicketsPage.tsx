@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Clock, MapPin, Ticket } from 'lucide-react';
+import { CalendarDays, ChevronRight, CircleCheck, Clock, MapPin, Ticket, WifiOff } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { MoviePoster } from '@/components/movie/MoviePoster';
@@ -10,8 +10,10 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNow } from '@/hooks/useNow';
 import { cn } from '@/lib/cn';
 import { formatCurrency, formatFullDate, formatTime } from '@/lib/format';
-import { getBookingTimelineStatus, type BookingTimelineStatus } from '@/services/bookingService';
-import { useBookingHistoryStore } from '@/store/bookingHistoryStore';
+import { getBookingTimelineStatus, type BookingTimelineStatus } from '@shared/services/bookingPolicy';
+import { useMyBookings } from '@/hooks/useMyBookings';
+import { PageLoader } from '@/components/ui/PageLoader';
+import { Button } from '@/components/ui/Button';
 import type { Booking } from '@shared/types/domain';
 
 const TABS: { value: BookingTimelineStatus; label: string; emptyTitle: string; emptyDescription: string }[] = [
@@ -48,6 +50,11 @@ function TicketListItem({ booking, status }: { booking: Booking; status: Booking
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-bold transition-colors group-hover:text-brand">{booking.movieTitle}</h2>
           <TicketStatusBadge status={status} />
+          {booking.checkedInAt && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-300">
+              <CircleCheck className="size-3.5" aria-hidden /> Đã soát vé
+            </span>
+          )}
         </div>
         <div className="mt-2 grid gap-1 text-sm text-ink-muted">
           <p className="flex items-center gap-2">
@@ -76,7 +83,7 @@ function TicketListItem({ booking, status }: { booking: Booking; status: Booking
 
 export function MyTicketsPage() {
   useDocumentTitle('Vé của tôi');
-  const bookings = useBookingHistoryStore((state) => state.bookings);
+  const { data: bookings = [], isPending, isError, refetch } = useMyBookings();
   const now = useNow();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = TABS.find((tab) => tab.value === searchParams.get('status')) ?? TABS[0]!;
@@ -122,7 +129,16 @@ export function MyTicketsPage() {
       </div>
 
       <div className="mt-6 space-y-4" role="tabpanel" aria-label={activeTab.label}>
-        {visibleBookings.length === 0 ? (
+        {isPending ? (
+          <PageLoader label="Đang tải vé của bạn..." />
+        ) : isError ? (
+          <EmptyState
+            icon={WifiOff}
+            title="Không tải được danh sách vé"
+            description="Kết nối tới máy chủ gặp sự cố."
+            action={<Button onClick={() => void refetch()}>Thử lại</Button>}
+          />
+        ) : visibleBookings.length === 0 ? (
           <EmptyState
             icon={Ticket}
             title={activeTab.emptyTitle}

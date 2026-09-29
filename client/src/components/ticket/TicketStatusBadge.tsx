@@ -1,5 +1,5 @@
 import { cn } from '@/lib/cn';
-import type { BookingTimelineStatus } from '@/services/bookingService';
+import type { BookingTimelineStatus } from '@shared/services/bookingPolicy';
 
 const STATUS_CONFIG: Record<BookingTimelineStatus, { label: string; className: string }> = {
   upcoming: { label: 'Sắp chiếu', className: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30' },

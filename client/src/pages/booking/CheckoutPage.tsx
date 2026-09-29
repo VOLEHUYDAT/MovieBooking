@@ -1,27 +1,31 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, LoaderCircle, Mail, Phone, QrCode, ShieldCheck, Tag, TriangleAlert, User, Wallet, X, type LucideIcon } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type FormEvent, type InputHTMLAttributes } from 'react';
-import { Navigate } from 'react-router';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { Navigate, useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { AGE_RATING_DESCRIPTIONS } from '@shared/data/ageRatings';
+import { PAYMENT_METHODS } from '@shared/data/paymentMethods';
+import { findPromotion, PROMOTIONS } from '@shared/data/promotions';
+import { validateCustomerInfo, type CustomerInfoErrors } from '@shared/lib/validation';
+import { evaluatePromotion } from '@shared/services/pricingService';
+import { isShowtimeBookable } from '@shared/services/showtimeService';
+import type { CustomerInfo, PaymentMethod } from '@shared/types/domain';
+import { bookingApi, queryKeys } from '@/api/endpoints';
+import { getErrorMessage, isApiError } from '@/api/httpClient';
 import { BookingStepShell } from '@/components/booking/BookingStepShell';
 import { AgeRatingBadge } from '@/components/ui/Badges';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { AGE_RATING_DESCRIPTIONS } from '@shared/data/ageRatings';
-import { PAYMENT_METHODS } from '@shared/data/paymentMethods';
-import { findPromotion, PROMOTIONS } from '@shared/data/promotions';
+import { TextField } from '@/components/ui/TextField';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/cn';
 import { formatCurrency } from '@/lib/format';
-import { validateCustomerInfo, type CustomerInfoErrors } from '@shared/lib/validation';
-import { createBooking } from '@/services/bookingService';
-import { evaluatePromotion } from '@shared/services/pricingService';
-import { isShowtimeBookable } from '@shared/services/showtimeService';
 import { useBookingDraftStore } from '@/store/bookingDraftStore';
-import { useBookingHistoryStore } from '@/store/bookingHistoryStore';
-import type { CustomerInfo, PaymentMethod } from '@shared/types/domain';
 import { useBookingFlow } from './bookingFlowContext';
 
 const CHECKOUT_FORM_ID = 'checkout-form';
-const PAYMENT_PROCESSING_DELAY_MS = 1_800;
+/** Simulated payment-gateway round trip before the booking is confirmed by the API. */
+const PAYMENT_PROCESSING_DELAY_MS = 1_500;
 const CUSTOMER_FIELDS: (keyof CustomerInfo)[] = ['fullName', 'phone', 'email'];
 
 const PAYMENT_ICONS: Record<PaymentMethod, LucideIcon> = {
@@ -30,56 +34,23 @@ const PAYMENT_ICONS: Record<PaymentMethod, LucideIcon> = {
   'bank-transfer': QrCode,
 };
 
-interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  name: keyof CustomerInfo;
-  label: string;
-  icon: LucideIcon;
-  error?: string;
-}
-
-function TextField({ name, label, icon: Icon, error, className, ...inputProps }: TextFieldProps) {
-  const inputId = useId();
-  const errorId = `${inputId}-error`;
-
-  return (
-    <div className={className}>
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-semibold">
-        {label} <span className="text-brand">*</span>
-      </label>
-      <div className="relative">
-        <Icon className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-ink-subtle" aria-hidden />
-        <input
-          id={inputId}
-          name={name}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? errorId : undefined}
-          className={cn(
-            'h-12 w-full rounded-xl border bg-surface-raised pr-4 pl-10 text-sm transition-colors placeholder:text-ink-subtle focus:outline-none',
-            error ? 'border-red-500/70 focus:border-red-400' : 'border-line-strong focus:border-brand',
-          )}
-          {...inputProps}
-        />
-      </div>
-      {error && (
-        <p id={errorId} className="mt-1.5 text-xs text-red-400">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function CheckoutPage() {
   const flow = useBookingFlow();
-  const { movie, cinema, showtime, selectedSeats, concessionQuantities, priceBreakdown, promotion, promotionEvaluation, holdRemainingMs, basePath } = flow;
+  const { movie, showtime, selectedSeats, concessionQuantities, priceBreakdown, promotion, promotionEvaluation, hold, basePath } = flow;
 
-  const lastCustomer = useBookingHistoryStore((state) => state.lastCustomer);
-  const addBooking = useBookingHistoryStore((state) => state.addBooking);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
   const setPromoCode = useBookingDraftStore((state) => state.setPromoCode);
   const completeDraft = useBookingDraftStore((state) => state.completeDraft);
+  const clearSeats = useBookingDraftStore((state) => state.clearSeats);
+  const createBooking = useMutation({ mutationFn: bookingApi.create });
 
-  const [customer, setCustomer] = useState<CustomerInfo>(() => lastCustomer ?? { fullName: '', phone: '', email: '' });
+  const [customer, setCustomer] = useState<CustomerInfo>(() =>
+    user ? { fullName: user.fullName, phone: user.phone, email: user.email } : { fullName: '', phone: '', email: '' },
+  );
   const [touchedFields, setTouchedFields] = useState<Partial<Record<keyof CustomerInfo, boolean>>>({});
+  const [serverErrors, setServerErrors] = useState<CustomerInfoErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('e-wallet');
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
@@ -91,17 +62,24 @@ export function CheckoutPage() {
 
   useEffect(() => () => window.clearTimeout(paymentTimerRef.current), []);
 
-  if (selectedSeats.length === 0 || holdRemainingMs === null) {
+  if (selectedSeats.length === 0 || hold === null) {
     return <Navigate to={`${basePath}/seats`} replace />;
   }
 
-  const errors = validateCustomerInfo(customer);
+  const errors: CustomerInfoErrors = { ...validateCustomerInfo(customer) };
+  for (const field of CUSTOMER_FIELDS) {
+    const serverError = serverErrors[field];
+    if (serverError) errors[field] = serverError;
+  }
   const visibleErrors: CustomerInfoErrors = Object.fromEntries(
     CUSTOMER_FIELDS.filter((field) => (isSubmitted || touchedFields[field]) && errors[field]).map((field) => [field, errors[field]]),
   );
   const isAgeRestricted = movie.ageRating === 'T13' || movie.ageRating === 'T16' || movie.ageRating === 'T18';
 
-  const updateCustomer = (field: keyof CustomerInfo, value: string) => setCustomer((current) => ({ ...current, [field]: value }));
+  const updateCustomer = (field: keyof CustomerInfo, value: string) => {
+    setCustomer((current) => ({ ...current, [field]: value }));
+    setServerErrors((current) => ({ ...current, [field]: undefined }));
+  };
   const markTouched = (field: keyof CustomerInfo) => setTouchedFields((current) => ({ ...current, [field]: true }));
 
   const applyPromoCode = (code: string) => {
@@ -122,6 +100,46 @@ export function CheckoutPage() {
     setPromoInput('');
     setPromoError(null);
     toast.success(`Đã áp dụng mã ${candidate.code}: giảm ${formatCurrency(evaluation.discount)}`);
+  };
+
+  const submitBooking = () => {
+    createBooking.mutate(
+      {
+        holdId: hold.id,
+        concessions: concessionQuantities,
+        promoCode: promotion && promotionEvaluation?.isValid ? promotion.code : null,
+        customer,
+        paymentMethod,
+      },
+      {
+        onSuccess: ({ booking }) => {
+          queryClient.setQueryData(queryKeys.booking(booking.id), booking);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.myBookings });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.seatAvailability(showtime.id) });
+          completeDraft(booking.id);
+          toast.success('Thanh toán thành công! Chúc bạn xem phim vui vẻ 🎬');
+        },
+        onError: (error) => {
+          setIsProcessing(false);
+          toast.error(getErrorMessage(error));
+          if (isApiError(error, 'HOLD_EXPIRED') || isApiError(error, 'SEATS_UNAVAILABLE')) {
+            clearSeats();
+            void queryClient.invalidateQueries({ queryKey: queryKeys.seatAvailability(showtime.id) });
+            navigate(`${basePath}/seats`, { replace: true });
+          } else if (isApiError(error, 'PROMOTION_INVALID')) {
+            setPromoCode(null);
+            setPromoError(error.message);
+          } else if (isApiError(error, 'VALIDATION_ERROR')) {
+            const fieldErrors: CustomerInfoErrors = {};
+            for (const [key, message] of Object.entries(error.fields)) {
+              const field = key.replace(/^customer\./, '') as keyof CustomerInfo;
+              if (CUSTOMER_FIELDS.includes(field)) fieldErrors[field] = message;
+            }
+            setServerErrors(fieldErrors);
+          }
+        },
+      },
+    );
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -145,21 +163,7 @@ export function CheckoutPage() {
     }
 
     setIsProcessing(true);
-    paymentTimerRef.current = window.setTimeout(() => {
-      const booking = createBooking({
-        movie,
-        cinema,
-        showtime,
-        seats: selectedSeats,
-        concessionQuantities,
-        customer,
-        paymentMethod,
-        promotion,
-      });
-      addBooking(booking);
-      completeDraft(booking.id);
-      toast.success('Thanh toán thành công! Chúc bạn xem phim vui vẻ 🎬');
-    }, PAYMENT_PROCESSING_DELAY_MS);
+    paymentTimerRef.current = window.setTimeout(submitBooking, PAYMENT_PROCESSING_DELAY_MS);
   };
 
   return (

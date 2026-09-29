@@ -1,4 +1,7 @@
-import { daysBetween, parseDateKey } from '@shared/lib/date';
+import { CINEMA_TIME_ZONE, daysBetween, parseDateKey } from '@shared/lib/date';
+
+/** All schedule times are shown in cinema time, whatever the viewer's device time zone is. */
+const timeZone = CINEMA_TIME_ZONE;
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -6,19 +9,27 @@ const currencyFormatter = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0,
 });
 
-const timeFormatter = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+const timeFormatter = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone });
 const fullDateFormatter = new Intl.DateTimeFormat('vi-VN', {
   weekday: 'long',
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
+  timeZone,
 });
-const shortDateFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const dayMonthFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' });
-const weekdayFormatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'short' });
+const shortDateFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone });
+const dayMonthFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', timeZone });
+const weekdayFormatter = new Intl.DateTimeFormat('vi-VN', { weekday: 'short', timeZone });
 
 export function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
+}
+
+const compactNumberFormatter = new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 });
+
+/** Short amounts for axes and KPI tiles, e.g. "8,7 Tr ₫". */
+export function formatCompactCurrency(amount: number): string {
+  return `${compactNumberFormatter.format(amount)} ₫`;
 }
 
 export function formatTime(isoDate: string): string {
