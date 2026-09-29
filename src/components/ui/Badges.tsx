@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { AGE_RATING_DESCRIPTIONS } from '@/data/ageRatings';
 import type { AgeRating, ScreenFormat } from '@/types/domain';
 
 const AGE_RATING_STYLES: Record<AgeRating, string> = {
@@ -8,14 +9,6 @@ const AGE_RATING_STYLES: Record<AgeRating, string> = {
   T13: 'bg-amber-400 text-black',
   T16: 'bg-orange-500 text-white',
   T18: 'bg-red-600 text-white',
-};
-
-export const AGE_RATING_DESCRIPTIONS: Record<AgeRating, string> = {
-  P: 'Phổ biến cho mọi độ tuổi',
-  K: 'Dưới 13 tuổi cần xem cùng cha mẹ hoặc người giám hộ',
-  T13: 'Dành cho khán giả từ đủ 13 tuổi trở lên',
-  T16: 'Dành cho khán giả từ đủ 16 tuổi trở lên',
-  T18: 'Dành cho khán giả từ đủ 18 tuổi trở lên',
 };
 
 export function AgeRatingBadge({ rating, className }: { rating: AgeRating; className?: string }) {
