@@ -1,0 +1,145 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-canvas: #09090f;
+  --color-surface: #12121c;
+  --color-surface-raised: #1a1a27;
+  --color-surface-hover: #222233;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+  --color-ink: #f4f4f8;
+  --color-ink-muted: #a1a1b5;
+  --color-ink-subtle: #6b6b80;
+
+  --color-brand: #f43f5e;
+  --color-brand-strong: #e11d48;
+  --color-brand-soft: rgb(244 63 94 / 0.14);
+  --color-gold: #f59e0b;
+
+  --color-seat-standard: #2a2a3d;
+  --color-seat-vip: #3b2a12;
+  --color-seat-couple: #3a1631;
+
+  --shadow-glow: 0 10px 40px -10px rgb(244 63 94 / 0.55);
+
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pop {
+    from {
+      transform: scale(0.85);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: rgb(244 63 94 / 0.35);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.7);
+    backdrop-filter: blur(4px);
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .text-gradient-brand {
+    background: linear-gradient(90deg, #fb7185, #f59e0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-gradient-brand {
+    background-image: linear-gradient(135deg, #f43f5e 0%, #f97316 100%);
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+}
