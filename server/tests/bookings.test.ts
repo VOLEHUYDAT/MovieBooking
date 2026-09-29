@@ -69,6 +69,15 @@ describe('seat availability and holds', () => {
     expect((await holdSeats(bob.client, ['C7', 'C8'])).status).toBe(201);
   });
 
+  it('keeps staff and admins out of the storefront', async () => {
+    const staff = await signInAs(context, 'staff');
+    const admin = await signInAs(context, 'admin');
+    for (const { client } of [staff, admin]) {
+      expect((await holdSeats(client, ['A1', 'A2', 'A3'])).status).toBe(403);
+      expect((await client.get('/api/bookings/mine')).status).toBe(403);
+    }
+  });
+
   it('enforces the stranded-seat rule on the server', async () => {
     const { client } = await signInAs(context, 'customer');
     const response = await holdSeats(client, ['B5']); // strands B4 against the aisle
@@ -146,6 +155,8 @@ describe('bookings', () => {
 
     expect((await stranger.client.get(`/api/bookings/${booking.id}`)).status).toBe(404);
     expect((await staff.client.get(`/api/bookings/${booking.id}`)).status).toBe(200);
+    // Staff can look tickets up but only admins may cancel on a customer's behalf.
+    expect((await staff.client.post(`/api/bookings/${booking.id}/cancel`)).status).toBe(404);
     expect((await owner.client.get('/api/bookings/not-a-uuid')).status).toBe(404);
   });
 

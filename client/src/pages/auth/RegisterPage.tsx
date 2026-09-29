@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { useRegister } from '@/hooks/useAuthActions';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { resolvePostLoginPath } from '@/app/navigation';
 import { sanitizeRedirectPath } from '@/lib/auth';
 import { cn } from '@/lib/cn';
 
@@ -81,7 +82,7 @@ export function RegisterPage() {
       {
         onSuccess: ({ user }) => {
           toast.success(`Tạo tài khoản thành công. Xin chào ${user.fullName}!`);
-          navigate(redirect, { replace: true });
+          navigate(resolvePostLoginPath(redirect, user.role), { replace: true });
         },
         onError: (error) => {
           if (isApiError(error) && Object.keys(error.fields).length > 0) setServerErrors(error.fields);

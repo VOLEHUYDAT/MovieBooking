@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
-import type { UserResponse } from '@shared/types/api';
+import type { SessionResponse, UserResponse } from '@shared/types/api';
 import { validateEmail, validateFullName, validateNewPassword, validatePhone } from '@shared/lib/validation';
 import type { AppConfig } from '../../config/env';
 import { HttpError } from '../../http/httpError';
@@ -70,8 +70,8 @@ export function createAuthRouter({ config, auth }: { config: AppConfig; auth: Au
     res.status(204).end();
   });
 
-  router.get('/me', requireAuth, (req, res) => {
-    res.json({ user: getAuth(req).user } satisfies UserResponse);
+  router.get('/me', (req, res) => {
+    res.json({ user: req.auth?.user ?? null } satisfies SessionResponse);
   });
 
   router.patch('/me', requireAuth, async (req, res) => {

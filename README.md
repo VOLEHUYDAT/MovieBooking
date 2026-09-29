@@ -8,12 +8,19 @@ admin roles**, a **REST API** and **Supabase (PostgreSQL)** storage.
 
 ## ✨ Features by role
 
-| Role | Capabilities |
-| --- | --- |
-| **Guest** | Browse movies & cinemas, search, filter, view schedules and seat maps. Booking redirects to login and returns to the chosen showtime. |
-| **Customer** | Register / login, book tickets, server-side 10-minute seat hold, promo codes, e-ticket with QR, `.ics` calendar export, cancel up to 2 h before showtime, profile & password management. |
-| **Staff** | Everything a customer can do + **ticket check-in** by booking code (window: 2 h before start → end of screening). |
-| **Admin** | Everything staff can do + **dashboard** (revenue, tickets, top movies), **booking management** (search, filter, cancel any booking before start), **user management** (change roles, lock/unlock accounts). |
+Each role works in its own area and only sees the pages it needs (menus live in
+`client/src/app/navigation.ts`; the API enforces the same rules).
+
+| Role | Menu | Capabilities |
+| --- | --- | --- |
+| **Guest** | Phim · Rạp chiếu · Đăng nhập | Browse movies & cinemas, search, filter, view schedules. Booking redirects to login and returns to the chosen showtime. |
+| **Customer** | Phim · Rạp chiếu · Vé của tôi | Register / login, book tickets with a server-side 10-minute seat hold, promo codes, e-ticket with QR, `.ics` export, cancel up to 2 h before showtime, profile & password. |
+| **Staff** | Soát vé | Check-in desk: look up a booking code and admit guests (from 2 h before start until the screening ends). |
+| **Admin** | Tổng quan · Đặt vé · Người dùng · Soát vé | Revenue dashboard, booking search & cancellation, user roles and account locking, check-in. |
+
+Staff and admins are operational accounts: they land on their workspace after login and are
+redirected away from storefront pages (they cannot buy tickets). Account settings and individual
+ticket pages are available to every signed-in role.
 
 ## 🏗️ Architecture
 
@@ -106,11 +113,13 @@ All endpoints are under `/api`. State-changing requests require the header
 | Method & path | Access | Purpose |
 | --- | --- | --- |
 | `POST /auth/register` · `POST /auth/login` · `POST /auth/logout` | Public | Account & session |
-| `GET /auth/me` · `PATCH /auth/me` · `POST /auth/change-password` | Signed in | Profile & password |
+| `GET /auth/me` | Public | Current session (`user: null` for guests) |
+| `PATCH /auth/me` · `POST /auth/change-password` | Signed in | Profile & password |
 | `GET /showtimes/:id/seats` | Public | Unavailable seats + caller's own hold |
-| `POST /holds` · `DELETE /holds/:id` | Customer+ | Hold / release seats (10 min) |
-| `POST /bookings` | Customer+ | Confirm a hold into a booking |
-| `GET /bookings/mine` · `GET /bookings/:id` · `POST /bookings/:id/cancel` | Owner (or staff/admin) | Tickets |
+| `POST /holds` · `DELETE /holds/:id` | Customer | Hold / release seats (10 min) |
+| `POST /bookings` · `GET /bookings/mine` | Customer | Confirm a hold into a booking · own tickets |
+| `GET /bookings/:id` | Owner, staff, admin | Ticket detail |
+| `POST /bookings/:id/cancel` | Owner (policy window), admin | Cancel a booking |
 | `GET /staff/bookings/lookup?code=` · `POST /staff/bookings/:id/check-in` | Staff, Admin | Check-in |
 | `GET /admin/stats` · `GET /admin/bookings` | Admin (bookings: staff too) | Reports & search |
 | `GET /admin/users` · `PATCH /admin/users/:id` | Admin | Roles & account locking |

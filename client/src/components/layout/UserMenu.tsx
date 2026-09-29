@@ -1,9 +1,10 @@
-import { ChevronDown, LayoutDashboard, LogOut, ScanLine, Ticket, UserRound } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { hasPermission, ROLE_LABELS } from '@shared/lib/permissions';
+import { ROLE_LABELS } from '@shared/lib/permissions';
 import type { User } from '@shared/types/domain';
+import { getUserMenu } from '@/app/navigation';
 import { useLogout } from '@/hooks/useAuthActions';
 import { cn } from '@/lib/cn';
 
@@ -35,12 +36,7 @@ export function UserMenu({ user }: { user: User }) {
     };
   }, [isOpen]);
 
-  const items = [
-    { to: '/account', label: 'Tài khoản của tôi', icon: UserRound, visible: true },
-    { to: '/tickets', label: 'Vé của tôi', icon: Ticket, visible: true },
-    { to: '/staff/check-in', label: 'Soát vé', icon: ScanLine, visible: hasPermission(user.role, 'ticket:check-in') },
-    { to: '/admin', label: 'Trang quản trị', icon: LayoutDashboard, visible: hasPermission(user.role, 'report:view') },
-  ].filter((item) => item.visible);
+  const items = getUserMenu(user.role);
 
   return (
     <div ref={containerRef} className="relative">

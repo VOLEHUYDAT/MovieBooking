@@ -81,7 +81,9 @@ describe('login and sessions', () => {
   it('logs out and invalidates the session server-side', async () => {
     const { client } = await signInAs(context, 'customer');
     expect((await client.post('/api/auth/logout')).status).toBe(204);
-    expect((await client.get('/api/auth/me')).status).toBe(401);
+    const me = await client.get('/api/auth/me');
+    expect(me.status).toBe(200);
+    expect(me.body.user).toBeNull();
   });
 
   it('requires the CSRF header on state-changing requests', async () => {
@@ -99,8 +101,8 @@ describe('login and sessions', () => {
 
     const response = await client.post('/api/auth/change-password', { currentPassword: TEST_PASSWORD, newPassword: 'NewPass123' });
     expect(response.status).toBe(204);
-    expect((await client.get('/api/auth/me')).status).toBe(200);
-    expect((await otherDevice.get('/api/auth/me')).status).toBe(401);
+    expect((await client.get('/api/auth/me')).body.user).not.toBeNull();
+    expect((await otherDevice.get('/api/auth/me')).body.user).toBeNull();
 
     const relogin = await createClient(context.app).post('/api/auth/login', { email: user.email, password: 'NewPass123' });
     expect(relogin.status).toBe(200);

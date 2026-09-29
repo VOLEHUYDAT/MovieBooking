@@ -55,6 +55,11 @@ export interface UserResponse {
   user: User;
 }
 
+/** Current session: `user` is null for guests (a normal state, not an error). */
+export interface SessionResponse {
+  user: User | null;
+}
+
 // ---------------------------------------------------------------------------
 // Seats & bookings
 // ---------------------------------------------------------------------------

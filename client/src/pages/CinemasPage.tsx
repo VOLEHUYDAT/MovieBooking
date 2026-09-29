@@ -58,7 +58,7 @@ export function CinemasPage() {
       <h1 className="text-3xl font-black tracking-tight">Hệ thống rạp Lumina</h1>
       <p className="mt-2 text-ink-muted">Chọn rạp gần bạn để xem lịch chiếu và đặt vé.</p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[340px_1fr]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[340px_1fr]">
         <div role="radiogroup" aria-label="Chọn rạp" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:self-start">
           {CINEMAS.map((cinema) => {
             const isSelected = cinema.id === selectedCinema.id;

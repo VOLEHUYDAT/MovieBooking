@@ -1,7 +1,20 @@
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { Link } from 'react-router';
+import { usesStorefront } from '@/app/navigation';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function AppFooter() {
+  const { user } = useCurrentUser();
+
+  // Staff and admin workspaces get a compact footer without storefront links.
+  if (user && !usesStorefront(user.role)) {
+    return (
+      <footer className="print-hidden mt-16 border-t border-line py-5 text-center text-xs text-ink-subtle">
+        © {new Date().getFullYear()} Lumina Cinema · Hỗ trợ kỹ thuật: 1900 6868
+      </footer>
+    );
+  }
+
   return (
     <footer className="print-hidden mt-20 border-t border-line bg-surface/50">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">

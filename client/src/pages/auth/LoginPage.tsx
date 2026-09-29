@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { useLogin } from '@/hooks/useAuthActions';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { resolvePostLoginPath } from '@/app/navigation';
 import { sanitizeRedirectPath } from '@/lib/auth';
 
 /** Seeded demo accounts (see server/src/db/seed/demoAccounts.ts). Only bundled in development. */
@@ -45,7 +46,7 @@ export function LoginPage() {
       {
         onSuccess: ({ user }) => {
           toast.success(`Chào mừng trở lại, ${user.fullName}!`);
-          navigate(redirect, { replace: true });
+          navigate(resolvePostLoginPath(redirect, user.role), { replace: true });
         },
         onError: (error) => setFormError(getErrorMessage(error)),
       },

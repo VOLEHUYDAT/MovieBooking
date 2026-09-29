@@ -10,6 +10,7 @@ import type {
   PaginatedResponse,
   RegisterRequest,
   SeatAvailabilityResponse,
+  SessionResponse,
   UpdateProfileRequest,
   UpdateUserRequest,
   UserResponse,
@@ -18,7 +19,7 @@ import type { Booking, User, UserRole } from '@shared/types/domain';
 import { apiRequest } from './httpClient';
 
 export const authApi = {
-  me: (signal?: AbortSignal) => apiRequest<UserResponse>('/auth/me', { signal }),
+  me: (signal?: AbortSignal) => apiRequest<SessionResponse>('/auth/me', { signal }),
   login: (body: LoginRequest) => apiRequest<UserResponse>('/auth/login', { method: 'POST', body }),
   register: (body: RegisterRequest) => apiRequest<UserResponse>('/auth/register', { method: 'POST', body }),
   logout: () => apiRequest<void>('/auth/logout', { method: 'POST' }),

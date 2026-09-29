@@ -9,10 +9,14 @@ export type Permission =
   | 'user:manage'
   | 'report:view';
 
+/**
+ * Customers buy tickets; staff and admins are operational accounts that work in their own areas
+ * (check-in, back office) and do not use the storefront.
+ */
 const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   customer: ['booking:create'],
-  staff: ['booking:create', 'booking:view-any', 'ticket:check-in'],
-  admin: ['booking:create', 'booking:view-any', 'booking:cancel-any', 'ticket:check-in', 'user:manage', 'report:view'],
+  staff: ['booking:view-any', 'ticket:check-in'],
+  admin: ['booking:view-any', 'booking:cancel-any', 'ticket:check-in', 'user:manage', 'report:view'],
 };
 
 export function hasPermission(role: UserRole, permission: Permission): boolean {

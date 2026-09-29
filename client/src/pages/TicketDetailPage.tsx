@@ -83,7 +83,12 @@ export function TicketDetailPage() {
   const isOwner = booking.userId === user?.id;
   const isAdmin = !!user && hasPermission(user.role, 'booking:cancel-any');
   const isCancellable = (isOwner || isAdmin) && canCancelBooking(booking, now, { isAdmin });
-  const backLink = isOwner ? { to: '/tickets', label: 'Vé của tôi' } : { to: '/admin/bookings', label: 'Quản lý đặt vé' };
+  const backLink =
+    user?.role === 'admin'
+      ? { to: '/admin/bookings', label: 'Quản lý đặt vé' }
+      : user?.role === 'staff'
+        ? { to: '/staff/check-in', label: 'Soát vé' }
+        : { to: '/tickets', label: 'Vé của tôi' };
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
@@ -110,25 +115,27 @@ export function TicketDetailPage() {
       </div>
 
       <div className="print-hidden mt-6 grid gap-3 sm:grid-cols-2">
-        {status === 'upcoming' && (
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                downloadTextFile(`lumina-${booking.code}.ics`, buildCalendarEvent(booking), 'text/calendar;charset=utf-8');
-                toast.success('Đã tải file lịch (.ics). Mở file để thêm vào lịch của bạn.');
-              }}
-            >
-              <CalendarPlus className="size-4.5" aria-hidden /> Thêm vào lịch
-            </Button>
-            <Button variant="secondary" onClick={() => window.print()}>
-              <Printer className="size-4.5" aria-hidden /> In vé
-            </Button>
-          </>
+        {status === 'upcoming' && isOwner && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              downloadTextFile(`lumina-${booking.code}.ics`, buildCalendarEvent(booking), 'text/calendar;charset=utf-8');
+              toast.success('Đã tải file lịch (.ics). Mở file để thêm vào lịch của bạn.');
+            }}
+          >
+            <CalendarPlus className="size-4.5" aria-hidden /> Thêm vào lịch
+          </Button>
         )}
-        <ButtonLink to="/" variant={status === 'upcoming' ? 'ghost' : 'primary'} className="sm:col-span-2">
-          <Ticket className="size-4.5" aria-hidden /> Đặt thêm vé
-        </ButtonLink>
+        {status !== 'cancelled' && (
+          <Button variant="secondary" onClick={() => window.print()} className={isOwner && status === 'upcoming' ? undefined : 'sm:col-span-2'}>
+            <Printer className="size-4.5" aria-hidden /> In vé
+          </Button>
+        )}
+        {isOwner && (
+          <ButtonLink to="/" variant={status === 'upcoming' ? 'ghost' : 'primary'} className="sm:col-span-2">
+            <Ticket className="size-4.5" aria-hidden /> Đặt thêm vé
+          </ButtonLink>
+        )}
       </div>
 
       {status === 'upcoming' && booking.checkedInAt === null && (isOwner || isAdmin) && (

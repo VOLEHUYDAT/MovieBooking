@@ -1,5 +1,5 @@
-import { createBrowserRouter, Navigate } from 'react-router';
-import { GuestOnly, RequireAuth } from '@/components/auth/RequireAuth';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router';
+import { GuestOnly, RequireAuth, StorefrontOnly } from '@/components/auth/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AccountPage } from '@/pages/AccountPage';
 import { AdminBookingsPage } from '@/pages/admin/AdminBookingsPage';
@@ -20,36 +20,46 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { CheckInPage } from '@/pages/staff/CheckInPage';
 import { TicketDetailPage } from '@/pages/TicketDetailPage';
 
+/**
+ * Route map by audience (see app/navigation.ts for the matching menus):
+ * - Storefront (guests & customers): movies, cinemas, booking, my tickets
+ * - Staff: check-in desk        - Admin: back office + check-in
+ * - Everyone signed in: account settings and individual ticket pages
+ */
 export const router = createBrowserRouter([
   {
     element: <AppLayout />,
     children: [
-      // Public
-      { index: true, element: <HomePage /> },
-      { path: 'movies/:movieId', element: <MovieDetailPage /> },
-      { path: 'cinemas', element: <CinemasPage /> },
-      { path: 'login', element: <GuestOnly><LoginPage /></GuestOnly> },
-      { path: 'register', element: <GuestOnly><RegisterPage /></GuestOnly> },
-
-      // Signed-in users
       {
-        path: 'booking/:showtimeId',
-        element: <RequireAuth permission="booking:create"><BookingFlowLayout /></RequireAuth>,
+        element: (
+          <StorefrontOnly>
+            <Outlet />
+          </StorefrontOnly>
+        ),
         children: [
-          { index: true, element: <Navigate to="seats" replace /> },
-          { path: 'seats', element: <SeatSelectionPage /> },
-          { path: 'concessions', element: <ConcessionsPage /> },
-          { path: 'checkout', element: <CheckoutPage /> },
+          { index: true, element: <HomePage /> },
+          { path: 'movies/:movieId', element: <MovieDetailPage /> },
+          { path: 'cinemas', element: <CinemasPage /> },
+          {
+            path: 'booking/:showtimeId',
+            element: <RequireAuth permission="booking:create"><BookingFlowLayout /></RequireAuth>,
+            children: [
+              { index: true, element: <Navigate to="seats" replace /> },
+              { path: 'seats', element: <SeatSelectionPage /> },
+              { path: 'concessions', element: <ConcessionsPage /> },
+              { path: 'checkout', element: <CheckoutPage /> },
+            ],
+          },
+          { path: 'tickets', element: <RequireAuth permission="booking:create"><MyTicketsPage /></RequireAuth> },
         ],
       },
-      { path: 'tickets', element: <RequireAuth><MyTicketsPage /></RequireAuth> },
+
+      { path: 'login', element: <GuestOnly><LoginPage /></GuestOnly> },
+      { path: 'register', element: <GuestOnly><RegisterPage /></GuestOnly> },
       { path: 'tickets/:bookingId', element: <RequireAuth><TicketDetailPage /></RequireAuth> },
       { path: 'account', element: <RequireAuth><AccountPage /></RequireAuth> },
 
-      // Staff
       { path: 'staff/check-in', element: <RequireAuth permission="ticket:check-in"><CheckInPage /></RequireAuth> },
-
-      // Admin
       {
         path: 'admin',
         element: <RequireAuth permission="report:view"><AdminLayout /></RequireAuth>,

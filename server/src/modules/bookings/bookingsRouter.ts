@@ -4,7 +4,7 @@ import { PAYMENT_METHODS } from '@shared/data/paymentMethods';
 import { validateEmail, validateFullName, validatePhone } from '@shared/lib/validation';
 import type { BookingListResponse, BookingResponse, HoldResponse } from '@shared/types/api';
 import { HttpError } from '../../http/httpError';
-import { getAuth, requirePermission } from '../../http/middleware/authentication';
+import { getAuth, requireAuth, requirePermission } from '../../http/middleware/authentication';
 import { parseWith, validatedString } from '../../http/validation';
 import type { BookingService } from './bookingService';
 
@@ -68,12 +68,14 @@ export function createBookingsRouter({ bookings }: { bookings: BookingService })
     res.json({ bookings: await bookings.listMine(getAuth(req).user) } satisfies BookingListResponse);
   });
 
-  router.get('/bookings/:bookingId', canBook, async (req, res) => {
+  // Owners, staff and admins may read a booking; the service enforces who sees what.
+  router.get('/bookings/:bookingId', requireAuth, async (req, res) => {
     const bookingId = parseId(req.params.bookingId, 'Không tìm thấy vé');
     res.json({ booking: await bookings.getForActor(getAuth(req).user, bookingId) } satisfies BookingResponse);
   });
 
-  router.post('/bookings/:bookingId/cancel', canBook, async (req, res) => {
+  // Owners (within the policy window) and admins may cancel; the service enforces both rules.
+  router.post('/bookings/:bookingId/cancel', requireAuth, async (req, res) => {
     const bookingId = parseId(req.params.bookingId, 'Không tìm thấy vé');
     res.json({ booking: await bookings.cancel(getAuth(req).user, bookingId) } satisfies BookingResponse);
   });

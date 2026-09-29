@@ -126,8 +126,8 @@ export function CheckInPage() {
       </h1>
       <p className="mt-2 text-ink-muted">Nhập mã đặt vé (in dưới mã QR) để kiểm tra và xác nhận khách vào phòng chiếu.</p>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-        <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6" aria-label="Kiểm tra vé">
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <section className="min-w-0 rounded-2xl border border-line bg-surface p-5 sm:p-6" aria-label="Kiểm tra vé">
           <form onSubmit={handleLookup} className="flex gap-2">
             <label htmlFor="booking-code" className="sr-only">
               Mã đặt vé

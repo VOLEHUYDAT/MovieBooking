@@ -70,7 +70,7 @@ describe('user management', () => {
 
     const locked = await admin.client.patch(`/api/admin/users/${target.user.id}`, { isLocked: true });
     expect(locked.body.user.isLocked).toBe(true);
-    expect((await target.client.get('/api/auth/me')).status).toBe(401);
+    expect((await target.client.get('/api/auth/me')).body.user).toBeNull();
 
     const login = await createClient(context.app).post('/api/auth/login', { email: target.user.email, password: TEST_PASSWORD });
     expect(login.status).toBe(403);
